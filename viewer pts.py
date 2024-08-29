@@ -1,6 +1,6 @@
 import numpy as np  # pip install numpy
 import open3d as o3d  # pip install open3d
-
+import matplotlib.pyplot as plt  # pip install matplotlib
 
 def load_pts_file(file_path):
     """Load points from a PTS file."""
@@ -18,13 +18,18 @@ def load_pts_file(file_path):
 
 
 def visualize_points(points):
-    """Visualize the points using Open3D with a single color and increased point size."""
+    """Visualize the points using Open3D with height-based color mapping and lighting."""
     # Create an Open3D PointCloud object
     point_cloud = o3d.geometry.PointCloud()
     point_cloud.points = o3d.utility.Vector3dVector(points)
 
-    # Set all points to be a single color (e.g., white)
-    colors = np.ones((points.shape[0], 3)) * 0.5  # RGB values for white color
+    # Normalize z values to range [0, 1] for color mapping
+    z_min = points[:, 2].min()
+    z_max = points[:, 2].max()
+    z_normalized = (points[:, 2] - z_min) / (z_max - z_min)
+
+    # Apply a color map (e.g., viridis) based on the normalized z values
+    colors = plt.get_cmap('viridis')(z_normalized)[:, :3]  # Get RGB values from the colormap
     point_cloud.colors = o3d.utility.Vector3dVector(colors)
 
     # Create a visualizer
@@ -34,7 +39,10 @@ def visualize_points(points):
 
     # Change point size
     render_option = vis.get_render_option()
-    render_option.point_size = 5.0  # Increase point size (default is 1.0)
+    render_option.point_size = 1.0  # Increase point size (default is 1.0)
+
+    # Enable lighting effect
+    render_option.light_on = True
 
     # Update and run visualizer
     vis.update_geometry(point_cloud)

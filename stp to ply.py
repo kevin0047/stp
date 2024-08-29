@@ -1,14 +1,13 @@
 from OCC.Core.STEPControl import STEPControl_Reader
 from OCC.Core.TopoDS import topods
-from OCC.Core.BRep import BRep_Tool
-from OCC.Core.TopExp import TopExp_Explorer
-from OCC.Core.TopAbs import TopAbs_FACE
-from OCC.Core.IFSelect import IFSelect_RetDone
 from OCC.Core.BRepMesh import BRepMesh_IncrementalMesh
 from OCC.Core.BRepAdaptor import BRepAdaptor_Surface
 from OCC.Core.GeomLProp import GeomLProp_SLProps
-from OCC.Display.SimpleGui import init_display
-
+from OCC.Core.TopExp import TopExp_Explorer
+from OCC.Core.TopAbs import TopAbs_FACE
+from OCC.Core.IFSelect import IFSelect_RetDone
+import numpy as np
+import open3d as o3d
 
 def load_step_file(file_path):
     """Load a STEP file and return the shape."""
@@ -18,7 +17,6 @@ def load_step_file(file_path):
         raise Exception("Error loading STEP file.")
     step_reader.TransferRoots()
     return step_reader.OneShape()
-
 
 def extract_points_from_shape(shape, mesh_resolution=0.1, u_resolution=10, v_resolution=10):
     """Extract points from a shape using a mesh and additional surface sampling."""
@@ -33,6 +31,7 @@ def extract_points_from_shape(shape, mesh_resolution=0.1, u_resolution=10, v_res
     while exp.More():
         face = topods.Face(exp.Current())
         surf_adaptor = BRepAdaptor_Surface(face)
+        surf_handle = surf_adaptor.Surface()  # Obtain the Geom_Surface object
 
         u_min, u_max = surf_adaptor.FirstUParameter(), surf_adaptor.LastUParameter()
         v_min, v_max = surf_adaptor.FirstVParameter(), surf_adaptor.LastVParameter()
@@ -58,36 +57,30 @@ def extract_points_from_shape(shape, mesh_resolution=0.1, u_resolution=10, v_res
 
     return points
 
+def save_to_ply(points, output_file):
+    """Save points to a PLY file."""
+    # Create Open3D PointCloud object
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(np.array(points))
 
-def save_to_pts(points, output_file):
-    """Save points to a PTS file."""
-    with open(output_file, 'w') as file:
-        file.write(f"{len(points)}\n")
-        for pt in points:
-            file.write(f"{pt[0]} {pt[1]} {pt[2]}\n")
-
+    # Save to PLY file
+    o3d.io.write_point_cloud(output_file, pcd)
 
 def main():
     # File paths
     step_file_path = "MP_8F COVER (MACH)_3D file_RD_180404.stp"  # Update to your STEP file path
-    output_pts_file_path = "output_file.pts"  # Update to your desired output PTS file path
+    output_ply_file_path = "output_file.ply"  # Update to your desired PLY file path
 
     # Load the STEP file
     shape = load_step_file(step_file_path)
 
-    # Extract points with very fine mesh resolution and additional sampling
-    points = extract_points_from_shape(shape, mesh_resolution=0.001, u_resolution=50, v_resolution=50)  # Adjust resolution as needed
+    # Extract points with fine resolution
+    points = extract_points_from_shape(shape, mesh_resolution=0.001, u_resolution=200, v_resolution=200)  # Increased resolution
 
-    # Save points to PTS file
-    save_to_pts(points, output_pts_file_path)
+    # Save points to PLY file
+    save_to_ply(points, output_ply_file_path)
 
-    print(f"PTS file saved as {output_pts_file_path}")
-
-    # Optional: Display the shape (for verification)
-    display, start_display, add_menu, add_function_to_menu = init_display()
-    display.DisplayShape(shape, update=True)
-    start_display()
-
+    print(f"PLY file saved as {output_ply_file_path}")
 
 if __name__ == "__main__":
     main()
